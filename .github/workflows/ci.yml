@@ -1,0 +1,69 @@
+name: проверка Docker конфигурации и контейнеров
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Проверка репозитория
+        uses: actions/checkout@v4
+
+      - name: Подготовка окружения
+        run: cp .env.example .env
+
+      - name: создание ssl сертификата
+        run: |
+          mkdir -p ssl
+          openssl req -x509 -nodes -newkey rsa:2048 \
+            -keyout ssl/site.local.key \
+            -out ssl/site.local.crt \
+            -days 1 \
+            -subj "/CN=site.local" \
+            -addext "subjectAltName=DNS:site.local"
+
+      - name: Проверка docker-compose
+        run: docker compose config --quiet
+
+      - name: Запуск контейнеров
+        run: docker compose up -d
+
+      - name: Проверка запущенных контейнеров
+        run: docker compose ps
+
+      - name: Проверка WordPress
+        run: |
+          curl --fail --insecure \
+            --retry 12 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --resolve site.local:443:127.0.0.1 \
+            https://site.local/
+
+      - name: Проверка Grafana
+        run: |
+          curl --fail \
+            --retry 12 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --resolve metrics.local:80:127.0.0.1 \
+            http://metrics.local/api/health
+
+      - name: Проверка Prometheus
+        run: |
+          curl --fail \
+            --retry 12 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            http://localhost:9090/-/healthy
+
+      - name: Тесты не прошли
+        if: failure()
+        run: docker compose logs
+
+      - name: Остановка контейнеров
+        if: always()
+        run: docker compose down -v
