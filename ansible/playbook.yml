@@ -6,6 +6,19 @@
   vars:
     project_dir: /opt/wp-monitoring
 
+  vars_prompt:
+    - name: db_password
+      prompt: MariaDB user password
+      private: true
+
+    - name: db_root_password
+      prompt: MariaDB root password
+      private: true
+
+    - name: grafana_admin_password
+      prompt: Grafana administrator password
+      private: true
+
   tasks:
     - name: Установка необходимых пакетов
       ansible.builtin.apt:
@@ -39,6 +52,93 @@
         group: root
         mode: "0644"
       notify: Перезапуск Fail2ban
+
+    - name: Создание директории проекта
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Копирование docker-compose
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../docker-compose.yml"
+        dest: "{{ project_dir }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Копирование конфигурации nginx
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../nginx/"
+        dest: "{{ project_dir }}/nginx/"
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Копирование конфигурации prometheus
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../prometheus/"
+        dest: "{{ project_dir }}/prometheus/"
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Копирование конфигурации grafana
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../grafana/"
+        dest: "{{ project_dir }}/grafana/"
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Создание окружения
+      ansible.builtin.template:
+        src: env.j2
+        dest: "{{ project_dir }}/.env"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Создание директории для ssl
+      ansible.builtin.file:
+        path: "{{ project_dir }}/ssl"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Создание самоподписанного ssl сертификата
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -x509
+          - -nodes
+          - -newkey
+          - rsa:2048
+          - -keyout
+          - "{{ project_dir }}/ssl/site.local.key"
+          - -out
+          - "{{ project_dir }}/ssl/site.local.crt"
+          - -days
+          - "365"
+          - -subj
+          - /CN=site.local
+          - -addext
+          - subjectAltName=DNS:site.local
+        creates: "{{ project_dir }}/ssl/site.local.crt"
+
+    - name: Запуск контейнеров
+      ansible.builtin.command:
+        cmd: docker compose up -d --remove-orphans
+        chdir: "{{ project_dir }}"
+      register: compose_result
+      changed_when: >
+        'Created' in compose_result.stderr or
+        'Started' in compose_result.stderr or
+        'Recreated' in compose_result.stderr
 
   handlers:
     - name: Перезапуск Fail2ban
