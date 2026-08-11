@@ -4,7 +4,7 @@
   become: true
 
   vars:
-    project_dir: /opt/rocket_test
+    project_dir: /opt/wp-monitoring
 
   tasks:
     - name: Установка необходимых пакетов
