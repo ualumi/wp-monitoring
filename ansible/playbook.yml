@@ -22,9 +22,11 @@
         name: docker
         state: started
         enabled: true
+      when: not ansible_check_mode
 
     - name: Запуск Fail2ban
       ansible.builtin.systemd:
         name: fail2ban
         state: started
         enabled: true
+      when: not ansible_check_mode
