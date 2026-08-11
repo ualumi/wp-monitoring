@@ -55,9 +55,19 @@ openssl req -x509 -nodes -newkey rsa:2048 \
   -addext "subjectAltName=DNS:site.local"
 ```
 
-### 3. Разрешённый ip для wordpress
+### 3. Локальные доменные имена
 
-перед запуском указать в `nginx/conf.d/site.conf` ip, с которого разрешён доступ к `/wp-admin` и `/wp-login.php` (адрес зависит от среды развёртывания)
+Для доступа к сервисам по именам `site.local` и `metrics.local` добавить записи в `/etc/hosts`:
+
+```bash
+echo "127.0.0.1 site.local metrics.local" | sudo tee -a /etc/hosts
+```
+
+Если проект развёрнут на удалённом сервере, вместо `127.0.0.1` указать IP-адрес этого сервера.
+
+### 4. Разрешённый IP для WordPress
+
+Перед запуском указать в `nginx/conf.d/site.conf` IP-адрес или подсеть, с которой разрешён доступ к `/wp-admin` и `/wp-login.php` (значение зависит от среды развёртывания):
 
 ```nginx
 allow 172.18.0.1;
@@ -77,7 +87,21 @@ docker compose up -d
 - wordpress <https://site.local>
 - grafana через nginx <http://metrics.local>
 - prometheus <http://localhost:9090>
-- grafana на опубликованном порту <http://localhost:3000>
+
+Порты WordPress, MariaDB, Grafana и node exporter не публикуются на хосте. Доступ к WordPress и Grafana выполняется только через Nginx.
+
+## Развёртывание через Ansible
+
+Ansible-плейбук предназначен для Debian/Ubuntu и устанавливает Docker, Docker Compose, Fail2ban и OpenSSL, копирует конфигурации, создаёт `.env` и самоподписанный сертификат, после чего запускает контейнеры.
+
+На управляющем узле должен быть установлен Ansible. Для локального развёртывания выполнить из корня проекта:
+
+```bash
+cd ansible
+ansible-playbook playbook.yml
+```
+
+Во время запуска Ansible запросит пароли пользователя MariaDB, `root` MariaDB и администратора Grafana. Для удалённого сервера необходимо заменить `localhost` в `ansible/inventory.ini` на адрес целевого хоста и настроить SSH-доступ.
 
 ## ip ограничения
 
@@ -114,6 +138,10 @@ sudo fail2ban-client status sshd
 Текущая jail блокирует ip на один час после пяти неудачных ssh аутентификаций за десять минут.
 
 Перед проверкой на удалённом сервере следует добавить ip администратора в `ignoreip`, чтобы не потерять ssh доступ.
+
+## Трудозатраты
+
+Фактические трудозатраты на реализацию и проверку проекта: **указать перед отправкой** часов.
 
 ## Остановка
 
