@@ -1,4 +1,30 @@
-[defaults]
-inventory = inventory.ini
-host_key_checking = False
-interpreter_python = auto_silent
+---
+- name: Развернуть инфраструктуру wordpress
+  hosts: wordpress_servers
+  become: true
+
+  vars:
+    project_dir: /opt/rocket_test
+
+  tasks:
+    - name: Установка необходимых пакетов
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+          - fail2ban
+          - openssl
+        state: present
+        update_cache: true
+
+    - name: Запуск Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Запуск Fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+        state: started
+        enabled: true
