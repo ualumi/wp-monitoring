@@ -92,7 +92,7 @@ docker compose up -d
 
 ## Развёртывание через Ansible
 
-Ansible-плейбук предназначен для Debian/Ubuntu и устанавливает Docker, Docker Compose, Fail2ban и OpenSSL, копирует конфигурации, создаёт `.env` и самоподписанный сертификат, после чего запускает контейнеры.
+`Ansible плейбук предназначен для Ubuntu` и устанавливает Docker, Docker Compose, Fail2ban и OpenSSL, копирует конфигурации, создаёт `.env` и самоподписанный сертификат, после чего запускает контейнеры.
 
 На управляющем узле должен быть установлен Ansible. Для локального развёртывания выполнить из корня проекта:
 
@@ -101,8 +101,41 @@ cd ansible
 ansible-playbook playbook.yml
 ```
 
-Во время запуска Ansible запросит пароли пользователя MariaDB, `root` MariaDB и администратора Grafana. Для удалённого сервера необходимо заменить `localhost` в `ansible/inventory.ini` на адрес целевого хоста и настроить SSH-доступ.
+Во время запуска Ansible запросит пароли пользователя MariaDB, `root` MariaDB и администратора Grafana. Для удалённого сервера необходимо заменить `localhost` в `ansible/inventory.ini` на адрес целевого хоста и настроить ssh доступ.
 
+### Пример развёртывания на удалённом сервере
+
+- адрес сервера 192.168.1.50
+- SSH-пользователь ubuntu
+- вход выполняется по SSH-ключу ~/.ssh/id_ed25519
+- пользователь ubuntu имеет право выполнять команды через sudo
+
+Указать сервер в ansible/inventory.ini:
+
+```ini
+[wordpress_servers]
+192.168.1.50 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519
+```
+
+Запустить развёртывание:
+```bash
+ansible-playbook playbook.yml
+```
+
+Если sudo требует пароль, добавить параметр --ask-become-pass:
+```bash
+ansible-playbook playbook.yml --ask-become-pass
+```
+
+После завершения добавить на компьютере проверяющего записи в /etc/hosts:
+```bash
+192.168.1.50 site.local metrics.local
+```
+Проверить результат:
+```bash
+curl -k --resolve site.local:443:192.168.1.50 https://site.local/
+curl --resolve metrics.local:80:192.168.1.50 http://metrics.local/api/health
+```
 ## ip ограничения
 
 c разрешённого ip ожидается 200 OK или перенаправление 301/302. С другого ip для /wp-admin и /wp-login.php ожидается 403 Forbidden, обычные страницы сайта остаются доступны.
@@ -138,10 +171,6 @@ sudo fail2ban-client status sshd
 Текущая jail блокирует ip на один час после пяти неудачных ssh аутентификаций за десять минут.
 
 Перед проверкой на удалённом сервере следует добавить ip администратора в `ignoreip`, чтобы не потерять ssh доступ.
-
-## Трудозатраты
-
-Фактические трудозатраты на реализацию и проверку проекта: **указать перед отправкой** часов.
 
 ## Остановка
 
