@@ -101,6 +101,11 @@ cd ansible
 ansible-playbook playbook.yml
 ```
 
+Если sudo необходим пароль, добавить параметр --ask-become-pass:
+```bash
+ansible-playbook playbook.yml --ask-become-pass
+```
+
 Во время запуска Ansible запросит пароли пользователя MariaDB, `root` MariaDB и администратора Grafana. Для удалённого сервера необходимо заменить `localhost` в `ansible/inventory.ini` на адрес целевого хоста и настроить ssh доступ.
 
 ### Пример развёртывания на удалённом сервере
